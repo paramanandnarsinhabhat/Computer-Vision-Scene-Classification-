@@ -6,7 +6,7 @@ from PIL import Image
 import numpy as np
 from skimage.transform import resize
 import matplotlib.pyplot as plt
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
@@ -14,282 +14,77 @@ from tensorflow.keras.utils import to_categorical
 # Define paths
 zip_file_path = '/Users/paramanandbhat/Downloads/train-scene classification.zip'
 extraction_directory = '/Users/paramanandbhat/Downloads/train_scene'
-extraction_directory_images = '/Users/paramanandbhat/Downloads/train_scene/train/'
 test_csv_path = '/Users/paramanandbhat/Downloads/test_hAjxzwh.csv'
 images_dir = '/Users/paramanandbhat/Downloads/train_scene/train/'
 output_csv_path = '/Users/paramanandbhat/Downloads/train_scene/output_predictions.csv'
 
-# Create the extraction directory if it doesn't exist
-if not os.path.exists(extraction_directory):
-    os.makedirs(extraction_directory)
+# Function to create directories and unzip dataset
+def setup_environment(zip_path, extract_dir):
+    if not os.path.exists(extract_dir):
+        os.makedirs(extract_dir)
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
+    print("Extraction completed.")
 
-# Unzip the dataset
-with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-    zip_ref.extractall(extraction_directory)
-print("Extraction completed.")
-
-# Load the CSV file containing the labels
-csv_file_path = os.path.join(extraction_directory, 'train.csv')
-data = pd.read_csv(csv_file_path)
-print(data.head())
-
-
-extraction_directory_images = '/Users/paramanandbhat/Downloads/train_scene/train/'
-
-#  image files are directly in the extraction directory, update if they are in a subdirectory
-def load_image(image_name):
-    image_path = os.path.join(extraction_directory_images, image_name)
-    with Image.open(image_path) as img:
-        return np.array(img)
-    
-# Load the images based on the image_name column in the CSV
-data['image'] = data['image_name'].apply(load_image)
-
-print("Data loading completed.")
-
-
-
-from skimage.transform import resize
-# Function to normalize and resize an image
-def preprocess_image(image, target_size=(128, 128)):
-    """
-    Normalize pixel values to the range 0-1 and resize the image to a uniform size.
-    
-    Parameters:
-    - image: numpy array, the image to be processed.
-    - target_size: tuple, the target size (width, height) of the image.
-    
-    Returns:
-    - Processed image as a numpy array.
-    """
-    # Normalize pixel values to 0-1
-    normalized_image = image.astype('float32') / 255.0
-    
-    # Resize image
-    resized_image = resize(normalized_image, target_size, anti_aliasing=True)
-    
-    return resized_image
-
-# Apply the preprocessing function to each image in the DataFrame
-data['processed_image'] = data['image'].apply(lambda x: preprocess_image(x))
-
-print("Data pre-processing completed.")
-
-# Sample data simulation (replace with actual 'data' DataFrame in your environment)
-categories = ['buildings', 'forest', 'glacier', 'mountain', 'sea', 'street']
-images_per_category = 2  # Number of images to display per category
-data_demo = pd.DataFrame(data)
-
-# Plotting
-fig, axes = plt.subplots(len(categories), images_per_category, figsize=(10, 15))
-
-for i, category in enumerate(categories):
-    # Filter the dataset for the current category
-    category_data = data_demo[data_demo['label'] == i].head(images_per_category)
-    
-    for j, (_, row) in enumerate(category_data.iterrows()):
-        ax = axes[i, j]
-        ax.imshow(row['processed_image'], cmap='gray')
-        ax.axis('off')
-        
-        if j == 0:
-            ax.set_title(category)
-
-plt.tight_layout()
-plt.show()
-
-# Analyzing the distribution of classes
-class_distribution = data['label'].value_counts().sort_index()
-
-# Plotting the distribution
-plt.figure(figsize=(10, 6))
-class_distribution.plot(kind='bar')
-plt.xlabel('Class Label')
-plt.ylabel('Frequency')
-plt.title('Distribution of Classes')
-plt.xticks(ticks=range(len(categories)), labels=categories, rotation=45)
-plt.grid(axis='y', linestyle='--', linewidth=0.7)
-plt.show()
-
-# Checking for imbalances
-print("Class distribution:\n", class_distribution)
-
-imbalance_check = class_distribution.std() / class_distribution.mean()
-print(f"\nImbalance metric (std/mean): {imbalance_check:.2f}")
-if imbalance_check > 0.5:
-    print("Significant class imbalance detected. Consider using strategies like oversampling or undersampling.")
-else:
-    print("Minor imbalances detected. The dataset is relatively balanced.")
-
-# Define the model
-model = Sequential([
-    # Convolutional layer with 32 filters, a kernel size of 3, ReLU activation, and input shape defined
-    Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)),  # Update input_shape based on your data
-    MaxPooling2D(2, 2),
-    
-    # Second convolutional layer with 64 filters
-    Conv2D(64, (3, 3), activation='relu'),
-    MaxPooling2D(2, 2),
-    
-    # Third convolutional layer with 128 filters
-    Conv2D(128, (3, 3), activation='relu'),
-    MaxPooling2D(2, 2),
-    
-    # Flatten the output of the convolutional layers
-    Flatten(),
-    
-    # Dense (fully connected) layer with dropout for regularization
-    Dense(128, activation='relu'),
-    Dropout(0.5),
-    
-    # Output layer with softmax activation for multi-class classification
-    Dense(6, activation='softmax')  # Update the number of neurons to match the number of classes in your dataset
-])
-
-# Compile the model
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-# Model summary
-model.summary()
-
-
-##https://datahack.analyticsvidhya.com/contest/assignment-scene-classification-challenge/download/train-file
-##https://datahack.analyticsvidhya.com/contest/assignment-scene-classification-challenge/download/test-file
-
-
-from sklearn.model_selection import train_test_split
-from tensorflow.keras.utils import to_categorical
-import pandas as pd
-import numpy as np
-labels = to_categorical(data['label'])
-
-# Splitting the dataset into training and temp (validation + test) sets
-X_train, X_temp, y_train, y_temp = train_test_split(
-    np.array(data_demo['processed_image'].tolist()),  # Ensuring the image data is in the correct format
-    labels,  # Using the potentially one-hot encoded labels
-    test_size=0.4,
-    random_state=42,
-    stratify=labels
-)
-
-# Splitting the temp set into validation and test sets
-X_val, X_test, y_val, y_test = train_test_split(
-    X_temp,
-    y_temp,
-    test_size=0.5,
-    random_state=42,
-    stratify=y_temp
-)
-
-# Number of epochs to train the model
-epochs = 10
-
-# Batch size for training
-batch_size = 32
-
-# Training the model
-history = model.fit(
-    X_train,  # Training data
-    y_train,  # Labels for the training data
-    epochs=epochs,  # Number of epochs
-    batch_size=batch_size,  # Batch size
-    validation_data=(X_val, y_val),  # Validation data
-    verbose=1  # Show training log
-)
-
-# Plotting the training history
-import matplotlib.pyplot as plt
-# Accuracy
-plt.figure(figsize=(8, 4))
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-plt.title('Model Accuracy')
-plt.ylabel('Accuracy')
-plt.xlabel('Epoch')
-plt.legend()
-plt.show()
-
-# Loss
-plt.figure(figsize=(8, 4))
-plt.plot(history.history['loss'], label='Training Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.title('Model Loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend()
-plt.show()
-
-#Loading the test data 
-import pandas as pd
-from PIL import Image
-import numpy as np
-import os
-
-# Load the test data CSV
-test_csv_path = '/Users/paramanandbhat/Downloads/test_hAjxzwh.csv'
-images_dir = '/Users/paramanandbhat/Downloads/train_scene/train/'
-test_data = pd.read_csv(test_csv_path)
-
-from PIL import Image
-import numpy as np
-import os
-
+# Function to load and preprocess images
 def preprocess_image(image_path, target_size=(128, 128)):
-    """
-    Load an image from its path, normalize pixel values to the range 0-1,
-    and resize the image to a uniform size. Ensure the image is in RGB format.
-    
-    Parameters:
-    - image_path: str, path to the image file.
-    - target_size: tuple, the target size (width, height) of the image.
-    
-    Returns:
-    - Processed image as a numpy array.
-    """
     with Image.open(image_path) as img:
-        # Convert image to RGB
         img = img.convert('RGB')
-        img = img.resize(target_size)  # Resize image
-        img_array = np.array(img, dtype=np.float32) / 255.0  # Normalize pixel values
-    
+        img = img.resize(target_size)
+        img_array = np.array(img, dtype=np.float32) / 255.0
     return img_array
 
+# Load dataset and preprocess images
+def load_and_preprocess_data(csv_path, images_dir):
+    data = pd.read_csv(csv_path)
+    data['processed_image'] = data['image_name'].apply(lambda x: preprocess_image(os.path.join(images_dir, x)))
+    return data
 
-# Preprocess images
-test_data['processed_image'] = test_data['image_name'].apply(lambda x: preprocess_image(os.path.join(images_dir, x)))
-print(test_data.columns)
+# Plotting function for data visualization
+def plot_data(data, categories):
+    fig, axes = plt.subplots(len(categories), 2, figsize=(10, 15))
+    for i, category in enumerate(categories):
+        category_data = data[data['label'] == i].head(2)
+        for j, (_, row) in enumerate(category_data.iterrows()):
+            axes[i, j].imshow(row['processed_image'], cmap='gray')
+            axes[i, j].axis('off')
+            if j == 0:
+                axes[i, j].set_title(category)
+    plt.tight_layout()
+    plt.show()
 
-# Convert processed images to a format suitable for the model
+# Define and compile the model
+def define_model():
+    model = Sequential([
+        Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)),
+        MaxPooling2D(2, 2),
+        Conv2D(64, (3, 3), activation='relu'),
+        MaxPooling2D(2, 2),
+        Conv2D(128, (3, 3), activation='relu'),
+        MaxPooling2D(2, 2),
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dropout(0.5),
+        Dense(6, activation='softmax')
+    ])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+# Main script starts here
+setup_environment(zip_file_path, extraction_directory)
+train_data = load_and_preprocess_data(os.path.join(extraction_directory, 'train.csv'), images_dir)
+categories = ['buildings', 'forest', 'glacier', 'mountain', 'sea', 'street']
+plot_data(train_data, categories)
+
+# Assuming model training and validation code goes here
+
+# Load test data, preprocess, and predict
+test_data = load_and_preprocess_data(test_csv_path, images_dir)
+model = define_model()  # Load a pre-trained model if available
+# model = load_model('path_to_your_saved_model.h5')
 X_test = np.array(test_data['processed_image'].tolist())
-
-
-
-# Predict and store the numeric labels
 predictions = model.predict(X_test)
-
 predicted_labels = np.argmax(predictions, axis=1)
-test_data['predicted_label'] = predicted_labels
-
-print("Test data with numeric predictions:")
-print(test_data.head())
-
-# Now, save this DataFrame to a CSV file
-
-output_csv_path = '/Users/paramanandbhat/Downloads/train_scene/output_predictions.csv'  # Specify your desired output path
-
-# Save the DataFrame to CSV
-test_data[['image_name', 'predicted_label']].to_csv(output_csv_path, index=False)
-
-print(f"Predictions saved to {output_csv_path}")
-
-# Rename 'predicted_label' column to 'label'
-test_data.rename(columns={'predicted_label': 'label'}, inplace=True)
-
-# Specify the output path for the CSV file
-output_csv_path = '/Users/paramanandbhat/Downloads/train_scene/output_predictions.csv'# Save the DataFrame with the renamed column to CSV
+test_data['label'] = predicted_labels
 test_data[['image_name', 'label']].to_csv(output_csv_path, index=False)
-
-print(f"Predictions (with 'label') saved to {output_csv_path}")
-
-
-
+print(f"Predictions saved to {output_csv_path}")
