@@ -197,3 +197,99 @@ history = model.fit(
     verbose=1  # Show training log
 )
 
+# Plotting the training history
+import matplotlib.pyplot as plt
+# Accuracy
+plt.figure(figsize=(8, 4))
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Model Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend()
+plt.show()
+
+# Loss
+plt.figure(figsize=(8, 4))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend()
+plt.show()
+
+#Loading the test data 
+import pandas as pd
+from PIL import Image
+import numpy as np
+import os
+
+# Load the test data CSV
+test_csv_path = '/Users/paramanandbhat/Downloads/test_hAjxzwh.csv'
+images_dir = '/Users/paramanandbhat/Downloads/train_scene/train/'
+test_data = pd.read_csv(test_csv_path)
+
+from PIL import Image
+import numpy as np
+import os
+
+def preprocess_image(image_path, target_size=(128, 128)):
+    """
+    Load an image from its path, normalize pixel values to the range 0-1,
+    and resize the image to a uniform size. Ensure the image is in RGB format.
+    
+    Parameters:
+    - image_path: str, path to the image file.
+    - target_size: tuple, the target size (width, height) of the image.
+    
+    Returns:
+    - Processed image as a numpy array.
+    """
+    with Image.open(image_path) as img:
+        # Convert image to RGB
+        img = img.convert('RGB')
+        img = img.resize(target_size)  # Resize image
+        img_array = np.array(img, dtype=np.float32) / 255.0  # Normalize pixel values
+    
+    return img_array
+
+
+# Preprocess images
+test_data['processed_image'] = test_data['image_name'].apply(lambda x: preprocess_image(os.path.join(images_dir, x)))
+print(test_data.columns)
+
+# Convert processed images to a format suitable for the model
+X_test = np.array(test_data['processed_image'].tolist())
+
+
+
+# Predict and store the numeric labels
+predictions = model.predict(X_test)
+
+predicted_labels = np.argmax(predictions, axis=1)
+test_data['predicted_label'] = predicted_labels
+
+print("Test data with numeric predictions:")
+print(test_data.head())
+
+# Now, save this DataFrame to a CSV file
+
+output_csv_path = '/Users/paramanandbhat/Downloads/train_scene/output_predictions.csv'  # Specify your desired output path
+
+# Save the DataFrame to CSV
+test_data[['image_name', 'predicted_label']].to_csv(output_csv_path, index=False)
+
+print(f"Predictions saved to {output_csv_path}")
+
+# Rename 'predicted_label' column to 'label'
+test_data.rename(columns={'predicted_label': 'label'}, inplace=True)
+
+# Specify the output path for the CSV file
+output_csv_path = '/Users/paramanandbhat/Downloads/train_scene/output_predictions.csv'# Save the DataFrame with the renamed column to CSV
+test_data[['image_name', 'label']].to_csv(output_csv_path, index=False)
+
+print(f"Predictions (with 'label') saved to {output_csv_path}")
+
+
+
