@@ -74,3 +74,81 @@ def preprocess_image(image, target_size=(128, 128)):
 data['processed_image'] = data['image'].apply(lambda x: preprocess_image(x))
 
 print("Data pre-processing completed.")
+
+# Sample data simulation (replace with actual 'data' DataFrame in your environment)
+categories = ['buildings', 'forest', 'glacier', 'mountain', 'sea', 'street']
+images_per_category = 2  # Number of images to display per category
+data_demo = pd.DataFrame(data)
+
+# Plotting
+fig, axes = plt.subplots(len(categories), images_per_category, figsize=(10, 15))
+
+for i, category in enumerate(categories):
+    # Filter the dataset for the current category
+    category_data = data_demo[data_demo['label'] == i].head(images_per_category)
+    
+    for j, (_, row) in enumerate(category_data.iterrows()):
+        ax = axes[i, j]
+        ax.imshow(row['processed_image'], cmap='gray')
+        ax.axis('off')
+        
+        if j == 0:
+            ax.set_title(category)
+
+plt.tight_layout()
+plt.show()
+
+# Analyzing the distribution of classes
+class_distribution = data['label'].value_counts().sort_index()
+
+# Plotting the distribution
+plt.figure(figsize=(10, 6))
+class_distribution.plot(kind='bar')
+plt.xlabel('Class Label')
+plt.ylabel('Frequency')
+plt.title('Distribution of Classes')
+plt.xticks(ticks=range(len(categories)), labels=categories, rotation=45)
+plt.grid(axis='y', linestyle='--', linewidth=0.7)
+plt.show()
+
+# Checking for imbalances
+print("Class distribution:\n", class_distribution)
+
+imbalance_check = class_distribution.std() / class_distribution.mean()
+print(f"\nImbalance metric (std/mean): {imbalance_check:.2f}")
+if imbalance_check > 0.5:
+    print("Significant class imbalance detected. Consider using strategies like oversampling or undersampling.")
+else:
+    print("Minor imbalances detected. The dataset is relatively balanced.")
+
+# Define the model
+model = Sequential([
+    # Convolutional layer with 32 filters, a kernel size of 3, ReLU activation, and input shape defined
+    Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)),  # Update input_shape based on your data
+    MaxPooling2D(2, 2),
+    
+    # Second convolutional layer with 64 filters
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    
+    # Third convolutional layer with 128 filters
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    
+    # Flatten the output of the convolutional layers
+    Flatten(),
+    
+    # Dense (fully connected) layer with dropout for regularization
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    
+    # Output layer with softmax activation for multi-class classification
+    Dense(6, activation='softmax')  # Update the number of neurons to match the number of classes in your dataset
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Model summary
+model.summary()
+
