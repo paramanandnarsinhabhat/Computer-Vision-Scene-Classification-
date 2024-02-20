@@ -152,3 +152,8 @@ model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accur
 # Model summary
 model.summary()
 
+
+##https://datahack.analyticsvidhya.com/contest/assignment-scene-classification-challenge/download/train-file
+##https://datahack.analyticsvidhya.com/contest/assignment-scene-classification-challenge/download/test-file
+
+
