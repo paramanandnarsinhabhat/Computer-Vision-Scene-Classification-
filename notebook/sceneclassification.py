@@ -157,3 +157,43 @@ model.summary()
 ##https://datahack.analyticsvidhya.com/contest/assignment-scene-classification-challenge/download/test-file
 
 
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.utils import to_categorical
+import pandas as pd
+import numpy as np
+labels = to_categorical(data['label'])
+
+# Splitting the dataset into training and temp (validation + test) sets
+X_train, X_temp, y_train, y_temp = train_test_split(
+    np.array(data_demo['processed_image'].tolist()),  # Ensuring the image data is in the correct format
+    labels,  # Using the potentially one-hot encoded labels
+    test_size=0.4,
+    random_state=42,
+    stratify=labels
+)
+
+# Splitting the temp set into validation and test sets
+X_val, X_test, y_val, y_test = train_test_split(
+    X_temp,
+    y_temp,
+    test_size=0.5,
+    random_state=42,
+    stratify=y_temp
+)
+
+# Number of epochs to train the model
+epochs = 10
+
+# Batch size for training
+batch_size = 32
+
+# Training the model
+history = model.fit(
+    X_train,  # Training data
+    y_train,  # Labels for the training data
+    epochs=epochs,  # Number of epochs
+    batch_size=batch_size,  # Batch size
+    validation_data=(X_val, y_val),  # Validation data
+    verbose=1  # Show training log
+)
+
